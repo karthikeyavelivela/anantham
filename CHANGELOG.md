@@ -16,3 +16,7 @@
 - M6: PyQt6 console (camera view, minimap, telemetry, live plots, config dock, perception
   debug, benchmark, evaluator MP4), QThread worker, blind mode.
 - M7: PDF reports, documentation, PyInstaller spec, CI (Ubuntu + Windows).
+- M8: final benchmark (34 scenarios × 5 seeds × 2 acquisition modes × 2 start modes = 680
+  runs) and ablation (7 variants × 34 scenarios × 3 seeds); results auto-inserted into the
+  README and technical report; summary tables and the combined PDF copied to `docs/results/`.
+  PyInstaller one-folder build verified on Linux (CLI run + GUI); the Windows build runs in CI on tags.

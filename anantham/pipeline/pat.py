@@ -138,7 +138,10 @@ class PatSystem:
             cands, dbg, res_sigma = res.candidates, res.debug, res.noise_sigma
             # VALIDATE: CNN verifier on plausible candidates
             if pc.mode == "hybrid" and cands:
-                check = [c for c in cands if c.size_match >= 0.3]
+                # with the identity gate on, a loose size prefilter saves CNN time; without
+                # it (ablation) every candidate must pass the verifier
+                check = cands if not self.cfg.tracker.identity_gate else \
+                    [c for c in cands if c.size_match >= 0.3]
                 ver = self.cnn.verify(gray, [(c.x, c.y) for c in check], self.s)
                 for c, (p, hx, hy) in zip(check, ver):
                     c.cnn_prob = p

@@ -63,31 +63,67 @@ All numbers below are generated from benchmark output by `tools/insert_results.p
 nothing is typed by hand.
 
 <!-- RESULTS:meta -->
-_not yet measured_
+Source: `results/final` — 680 runs, 5 seeds × 20 s, acquisition modes spiral, wide_fov, start modes random, in_fov, perception: config default; ablation 714 runs.
 <!-- /RESULTS:meta -->
 
 Runs passing each PS requirement (acquisition mode / start mode):
 
 <!-- RESULTS:bench_headline -->
-_not yet measured_
+| PS requirement | spiral / in_fov | spiral / random | wide_fov / in_fov | wide_fov / random |
+|---|---|---|---|---|
+| Acquisition ≤ 2 s | 160/165 | 41/165 | 165/165 | 162/165 |
+| Centroiding RMSE ≤ 10 px | 165/165 | 165/165 | 165/165 | 165/165 |
+| Tracking RMSE (all locked) ≤ 10 px | 131/165 | 35/165 | 128/165 | 36/165 |
+| Tracking RMSE (steady) ≤ 10 px | 150/165 | 149/164 | 150/165 | 150/165 |
+| Target loss < 5 % | 160/165 | 160/165 | 160/165 | 160/165 |
+| Re-acquisition ≤ 1 s | 10/15 | 6/11 | 10/15 | 7/12 |
+| Processing ≥ 20 FPS | 170/170 | 170/170 | 170/170 | 170/170 |
+| No false lock (target absent) | 5/5 | 5/5 | 5/5 | 5/5 |
+| All rows pass | 131/170 | 29/170 | 131/170 | 37/170 |
 <!-- /RESULTS:bench_headline -->
 
 Worst scenario groups:
 
 <!-- RESULTS:worst -->
-_not yet measured_
+| scenario | acq / start | pass rate | worst steady RMSE px | worst loss | worst acq. s |
+|---|---|---|---|---|---|
+| edge_exit | wide_fov / in_fov | 0 % | 1.06 | 15.38 % | 0.07 |
+| edge_exit | wide_fov / random | 0 % | 1.06 | 15.38 % | 0.07 |
+| edge_exit | spiral / in_fov | 0 % | 1.02 | 13.38 % | 0.07 |
+| edge_exit | spiral / random | 0 % | 1.02 | 13.38 % | 0.07 |
+| jitter20 | spiral / random | 0 % | 18.75 | 0.21 % | 14.43 |
+| jitter20 | wide_fov / random | 0 % | 19.14 | 0.17 % | 0.47 |
+| jitter20 | spiral / in_fov | 0 % | 19.16 | 0.17 % | 0.13 |
+| jitter20 | wide_fov / in_fov | 0 % | 19.16 | 0.17 % | 0.13 |
 <!-- /RESULTS:worst -->
 
 Ablation (in-FOV start, spiral acquisition):
 
 <!-- RESULTS:ablation -->
-_not yet measured_
+| variant | runs | acquired | centroid RMSE px | steady track RMSE px (mean/worst) | target loss (mean/worst) | re-acq events/run | re-acq max s | unrecovered runs | wrong-target frames/run | false-lock frames (target absent) | proc FPS | all-PS pass |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| classical_only | 102 | 100% | 140.282 | 28.86 / 958.75 | 25.05% / 100.00% | 15.6 | 7.37 | 18 | 40.4 | 275.0 | 134 | 2% |
+| classical_kalman | 102 | 100% | 182.322 | 53.72 / 964.20 | 27.00% / 100.00% | 25.5 | 1.37 | 17 | 49.4 | 409.0 | 152 | 2% |
+| cnn_only | 102 | 100% | 195.886 | 10.57 / 27.97 | 28.86% / 99.83% | 17.9 | 2.97 | 33 | 15.4 | 65.7 | 10 | 0% |
+| hybrid | 102 | 100% | 33.927 | 10.54 / 28.12 | 21.70% / 100.00% | 14.5 | 6.87 | 24 | 1.1 | 16.0 | 112 | 2% |
+| hybrid_gate | 102 | 100% | 0.040 | 10.53 / 28.10 | 18.11% / 97.32% | 11.7 | 6.93 | 20 | 0.0 | 0.0 | 136 | 29% |
+| hybrid_gate_ff | 102 | 100% | 0.040 | 4.87 / 38.51 | 1.51% / 31.44% | 1.0 | 2.67 | 2 | 0.0 | 0.0 | 136 | 76% |
+| full | 102 | 100% | 0.040 | 3.74 / 27.82 | 0.49% / 13.38% | 0.1 | 2.67 | 0 | 0.0 | 0.0 | 129 | 76% |
 <!-- /RESULTS:ablation -->
 
 CNN verifier (held-out simulated ROIs):
 
 <!-- RESULTS:cnn -->
-_not yet measured_
+| item | value |
+|---|---|
+| training samples (simulated ROIs) | 60000 (10 % held out) |
+| epochs / seed | 12 / 0 |
+| parameters | 28948 |
+| validation accuracy | 96.53 % |
+| precision / recall | 97.87 % / 97.23 % |
+| false-positive rate | 5.18 % |
+| heatmap localisation error median / P95 | 0.348 / 26.368 px |
+| training time (CPU) | 32.1 min |
 <!-- /RESULTS:cnn -->
 
 ### Honest reading of the numbers
