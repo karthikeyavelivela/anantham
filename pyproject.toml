@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anantham"
+version = "1.0.0"
+description = "AI-based virtual camera tracking for coarse alignment of mobile FSOC terminals (SIH26169)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "opencv-python-headless>=4.8",
+    "PyYAML>=6.0",
+    "matplotlib>=3.8",
+    "onnxruntime>=1.17",
+]
+
+[project.optional-dependencies]
+gui = ["PyQt6>=6.5", "pyqtgraph>=0.13"]
+train = ["torch>=2.1", "onnx>=1.15"]
+dev = ["pytest>=7", "ruff>=0.4", "pyinstaller>=6"]
+
+[project.scripts]
+anantham = "anantham.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["anantham*"]
+
+[tool.setuptools.package-data]
+anantham = ["config/presets/*.yaml", "models/*.onnx", "models/*.json"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E741", "B905", "B027"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
