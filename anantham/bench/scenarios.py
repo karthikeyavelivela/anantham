@@ -64,9 +64,10 @@ SCENARIOS: dict[str, dict] = {
     # --- extra checks ---------------------------------------------------------------
     "target_absent": {"target": {"present": False}},
     "occlusion": {"target": {"occlusions": [[8.0, 0.5]]}},
-    "edge_exit": {"target": {"motion": "waypoints", "speed_deg_s": 1.5, "start": "user",
-                             "waypoints": [[1000, 1000], [2300, 1000], [1000, 1000],
-                                           [1000, 700]]}},
+    # leaves the screen for ~2.6 s (x > 2000) and comes back; loop longer than the run
+    "edge_exit": {"target": {"motion": "waypoints", "speed_deg_s": 1.2, "start": "user",
+                             "waypoints": [[1000, 1000], [2250, 1000], [1000, 1000],
+                                           [500, 1000], [500, 500], [1000, 500]]}},
     "waypoints": {"target": {"motion": "waypoints", "speed_deg_s": 1.2,
                              "waypoints": [[500, 500], [1500, 600], [1400, 1500], [600, 1400]]}},
 }

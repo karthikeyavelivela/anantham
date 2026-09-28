@@ -112,7 +112,11 @@ def cmd_gui(args) -> None:
     """Launch the PyQt6 console."""
     from .gui.app import main as gui_main
 
-    gui_main()
+    extra = []
+    if args.screenshot:
+        extra = ["--screenshot", args.screenshot, "--seconds", str(args.seconds), "--preset",
+                 args.preset, "--size", args.size, "--tab", args.tab]
+    gui_main(extra)
 
 
 def cmd_train(args) -> None:
@@ -143,7 +147,13 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--allow-out-of-spec", action="store_true")
         p.add_argument("--perception", choices=["classical", "hybrid", "cnn"])
 
-    sub.add_parser("gui", help="launch the GUI").set_defaults(fn=cmd_gui)
+    p = sub.add_parser("gui", help="launch the GUI")
+    p.add_argument("--screenshot", help="(dev) run, save a window screenshot and exit")
+    p.add_argument("--seconds", type=float, default=6.0)
+    p.add_argument("--preset", default="default")
+    p.add_argument("--size", default="1920x1080")
+    p.add_argument("--tab", default="Tracking")
+    p.set_defaults(fn=cmd_gui)
 
     p = sub.add_parser("run", help="run one simulation")
     common(p)

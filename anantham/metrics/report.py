@@ -332,7 +332,8 @@ def write_bench_report(path: Path, agg: list[dict], rows: list[dict], meta: dict
 def _bench_distribution_page(pdf, rows):
     fig, axes = plt.subplots(2, 2, figsize=(11.69, 8.27))
     fig.suptitle("Distributions over all benchmark runs", color=NAVY, fontsize=13, weight="bold")
-    specs = [("acq_time_s", "Acquisition time (s)", 2.0), ("trk_ss_rmse_px", "Steady tracking RMSE (px)", 10.0),
+    specs = [("acq_time_s", "Acquisition time (s)", 2.0),
+             ("trk_ss_rmse_px", "Steady tracking RMSE (px)", 10.0),
              ("target_loss", "Target loss", 0.05), ("proc_fps", "Processing FPS", 20.0)]
     for ax, (col, title, thr) in zip(axes.ravel(), specs):
         v = np.array([np.nan if r[col] is None else float(r[col]) for r in rows], float)

@@ -129,7 +129,8 @@ def _nanworst(v, hi=True):
 AGG = [  # (column, higher_is_worse)
     ("acq_time_s", True), ("cent_rmse_px", True), ("trk_rmse_px", True), ("trk_ss_rmse_px", True),
     ("trk_ss_ctrl_rmse_px", True), ("target_loss", True), ("coverage", False),
-    ("reacq_max_s", True), ("wrong_target_frames", True), ("false_lock_frames", True),
+    ("reacq_max_s", True), ("reacq_max_after_visible_s", True), ("wrong_target_frames", True),
+    ("false_lock_frames", True),
     ("proc_fps", False),
 ]
 

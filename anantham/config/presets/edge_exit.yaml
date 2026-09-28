@@ -2,14 +2,18 @@
 # Only overrides of the defaults are listed; every other field keeps its PS default.
 target:
   motion: waypoints
-  speed_deg_s: 1.5
+  speed_deg_s: 1.2
   start: user
   waypoints:
   - - 1000
     - 1000
-  - - 2300
+  - - 2250
     - 1000
   - - 1000
     - 1000
+  - - 500
+    - 1000
+  - - 500
+    - 500
   - - 1000
-    - 700
+    - 500

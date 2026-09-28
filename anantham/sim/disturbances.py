@@ -184,28 +184,54 @@ def _rain(img: np.ndarray, n: int, rng: np.random.Generator, scale: float) -> np
     return img + layer
 
 
+POISSON_EXACT_BELOW = 20.0
+
+
+def fast_normal(shape: tuple, rng: np.random.Generator) -> np.ndarray:
+    """Standard-normal float32 image, ~5× faster than NumPy.
+
+    OpenCV's ``randn`` is seeded from ``rng`` on every call, so the result stays a
+    deterministic function of the run seed (R4).
+    """
+    buf = np.empty(shape, np.float32)
+    cv2.setRNGSeed(int(rng.integers(0, 2 ** 31 - 1)))
+    cv2.randn(buf, 0.0, 1.0)
+    return buf
+
+
 def poisson_noise(img: np.ndarray, gain: float, rng: np.random.Generator) -> np.ndarray:
     """Shot noise: DN = gain · Poisson(DN / gain).
 
-    Exact Poisson sampling for λ < 100 photo-electrons; above that the Gaussian limit
-    N(λ, λ) is used (relative error of the variance < 1 %), which is ~10× faster.
+    Exact Poisson sampling for λ < 20 photo-electrons; above that the Gaussian limit
+    N(λ, λ) is used (mean and variance exact; skewness 1/√λ ≤ 0.22 neglected), ~10× faster.
     """
     lam = img / gain
-    out = lam + np.sqrt(lam) * rng.standard_normal(lam.shape, dtype=np.float32)
-    low = lam < 100
+    out = lam + np.sqrt(lam) * fast_normal(lam.shape, rng)
+    low = lam < POISSON_EXACT_BELOW
     if low.any():
         out[low] = rng.poisson(lam[low])
     return out.astype(np.float32) * gain
 
 
 def apply_noise(img: np.ndarray, cfg: DisturbanceConfig, rng: np.random.Generator) -> np.ndarray:
-    """Poisson → Gaussian → salt & pepper → 8-bit quantisation. Returns uint8."""
-    out = np.clip(img, 0, None)
-    if cfg.poisson:
-        out = poisson_noise(out, cfg.poisson_gain, rng)
-    if cfg.gaussian and cfg.gaussian_sigma > 0:
-        out = out + rng.standard_normal(out.shape, dtype=np.float32) * cfg.gaussian_sigma
-    q = np.clip(np.rint(out), 0, 255).astype(np.uint8)
+    """Poisson → Gaussian → salt & pepper → 8-bit quantisation. Returns uint8.
+
+    When every pixel is in the Gaussian limit of the Poisson distribution (λ ≥ 20
+    photo-electrons), shot noise and read noise are independent Gaussians and are drawn as
+    one normal variate with the summed variance (same distribution, half the cost).
+    """
+    out = np.clip(img, 0, None).astype(np.float32, copy=False)
+    sig_g = cfg.gaussian_sigma if (cfg.gaussian and cfg.gaussian_sigma > 0) else 0.0
+    if cfg.poisson and float(out.min()) / cfg.poisson_gain >= POISSON_EXACT_BELOW:
+        std = np.sqrt(out * np.float32(cfg.poisson_gain) + np.float32(sig_g * sig_g))
+        out = out + std * fast_normal(out.shape, rng)
+    else:
+        if cfg.poisson:
+            out = poisson_noise(out, cfg.poisson_gain, rng)
+        if sig_g > 0:
+            out = out + fast_normal(out.shape, rng) * np.float32(sig_g)
+    np.clip(out, 0, 255, out=out)
+    q = np.rint(out, out=out).astype(np.uint8)
     if cfg.salt_pepper and cfg.sp_fraction > 0:
         r = rng.random(q.shape[:2], dtype=np.float32)
         half = cfg.sp_fraction / 2
