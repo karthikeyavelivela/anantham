@@ -152,6 +152,9 @@ class Tracker:
             self._step_primary(cands, out)
         if self.primary is None:
             self._step_tentative(cands, out)
+        for c in cands:  # every candidate gets a visible reason (perception debug table)
+            if not c.reason and c.accepted:
+                c.reason = "size-mismatch" if c.size_match < self.assoc_sm else "outside gate"
         out.state = self.state
         out.frames_in_state = self.frames_in_state
         return out

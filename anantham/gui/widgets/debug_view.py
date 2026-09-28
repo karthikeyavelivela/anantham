@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 STAGES = [("raw", "Raw"), ("median", "3×3 median"), ("tophat", "Top-hat"), ("mask", "Threshold mask"),
           ("heat", "CNN heatmap (best candidate ROI)")]
 COLS = ["x", "y", "score", "size_match", "snr", "cnn", "edge", "accepted", "reason"]
+HEADERS = ["x (px)", "y (px)", "score", "size match", "SNR", "CNN p", "edge", "tracker", "reason"]
 
 
 class DebugView(QWidget):
@@ -44,7 +45,8 @@ class DebugView(QWidget):
             self.views[k] = img
         lay.addLayout(grid, 3)
         self.table = QTableWidget(0, len(COLS))
-        self.table.setHorizontalHeaderLabels(COLS)
+        self.table.setHorizontalHeaderLabels(HEADERS)
+        self.table.horizontalHeader().setStretchLastSection(True)
         lay.addWidget(self.table, 2)
         self.cnn = None
 
@@ -60,15 +62,13 @@ class DebugView(QWidget):
         acc = [c for c in p["cands"] if c[3].get("cnn") is not None]
         if acc:
             self._heat(gray, acc[0][0], acc[0][1])
-        rows = [c[3] for c in p["cands"]]
-        self.table.setRowCount(len(rows))
-        for r, row in enumerate(rows):
+        self.table.setRowCount(len(p["cands"]))
+        for r, (_x, _y, used, row) in enumerate(p["cands"]):
             for c, key in enumerate(COLS):
-                it = QTableWidgetItem(str(row.get(key, "")))
+                val = ("used" if used else "rejected") if key == "accepted" else row.get(key, "")
+                it = QTableWidgetItem(str(val))
                 if key == "accepted":
-                    good = row.get("accepted") and not str(row.get("reason", "")).startswith(
-                        ("size", "edge", "low", "rejected", "cnn"))
-                    it.setBackground(QColor("#DCFCE7" if good else "#FEE2E2"))
+                    it.setBackground(QColor("#DCFCE7" if used else "#FEE2E2"))
                 self.table.setItem(r, c, it)
 
     def _heat(self, gray: np.ndarray, x: float, y: float) -> None:

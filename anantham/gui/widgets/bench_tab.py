@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -30,6 +31,9 @@ COLS = [("scenario", None), ("acq", None), ("start", None), ("seeds", None),
         ("acq_time_s_worst", 2.0), ("cent_rmse_px_worst", 10.0), ("trk_rmse_px_worst", 10.0),
         ("trk_ss_rmse_px_worst", 10.0), ("target_loss_worst", 0.05), ("reacq_max_s_worst", 1.0),
         ("proc_fps_worst", -20.0), ("pass_rate", None)]
+LABELS = ["scenario", "acq.", "start", "seeds", "acq. time s\n(worst)", "centroid RMSE\npx (worst)",
+          "track RMSE all\npx (worst)", "track RMSE steady\npx (worst)", "target loss\n(worst)",
+          "re-acq s\n(worst)", "proc FPS\n(min)", "all-PS\npass rate"]
 
 
 class BenchTab(QWidget):
@@ -75,7 +79,8 @@ class BenchTab(QWidget):
         left.addWidget(self.open_btn)
         lay.addLayout(left, 1)
         self.table = QTableWidget(0, len(COLS))
-        self.table.setHorizontalHeaderLabels([c for c, _ in COLS])
+        self.table.setHorizontalHeaderLabels(LABELS)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         lay.addWidget(self.table, 3)
         self.report = None
         self.out_dir = str(Path("results") / "gui_bench")

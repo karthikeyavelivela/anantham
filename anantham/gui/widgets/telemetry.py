@@ -73,6 +73,11 @@ class TelemetryPanel(QWidget):
         lay.addLayout(grid)
         lay.addStretch(1)
 
+    def set_video_mode(self, video: bool) -> None:
+        """In MP4 mode the boresight is virtual (no PTZ camera)."""
+        self.cards["track"].t.setText("Virtual pointing error" if video else "Tracking error")
+        self.video = video
+
     def _state_color(self, s: str) -> None:
         self.state.setStyleSheet(f"background:{STATE_COLORS.get(s, '#94A3B8')};")
 
@@ -85,7 +90,8 @@ class TelemetryPanel(QWidget):
         c["cent"].set(_f(ce, 3, " px"), f"{_f(ce * urad_per_px if ce == ce else None, 1)} µrad"
                       if ce == ce else "this frame", None if ce != ce else ce <= 10)
         te = p["track_err"] if p["state"] == "LOCKED" else float("nan")
-        c["track"].set(_f(te, 2, " px"), "|true beacon − boresight|" if te == te else
+        c["track"].set(_f(te, 2, " px"), ("|truth − virtual boresight|" if getattr(self, "video", False)
+                                         else "|true beacon − boresight|") if te == te else
                        "LOCKED frames only", None if te != te else te <= 10)
         c["pan"].set(f"{p['pointing_deg'][0]:+.3f}°", f"{p['rate']:+.2f} °/s")
         c["tilt"].set(f"{p['pointing_deg'][1]:+.3f}°", f"{p['rate_t']:+.2f} °/s")

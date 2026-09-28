@@ -16,6 +16,9 @@ from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from ..config import Config
 from ..metrics.summary import summarize
 
+#: candidate reasons that mean "not used by the tracker" (grey × in the camera view)
+REJECT_PREFIXES = ("size", "edge", "low", "rejected", "cnn", "outside")
+
 
 def _build_session(cfg: Config, video: str | None, truth: str | None, debug: bool):
     """Create the Session (runs inside the loop process)."""
@@ -63,8 +66,7 @@ def _packet(sess, r, metrics, debug: bool) -> dict:
         "kind": "frame", "k": f.index, "t": f.t, "image": np.ascontiguousarray(f.image),
         "state": o.state, "mode": o.mode, "meas": o.meas_img, "pred": o.pred_img,
         "vel": o.vel_ptg, "ellipse": o.ellipse, "sigma": o.sigma, "gate": o.gate,
-        "cands": [(c.x, c.y, c.accepted and not c.reason.startswith(("size", "edge", "low",
-                                                                      "rejected", "cnn")),
+        "cands": [(c.x, c.y, c.accepted and not c.reason.startswith(REJECT_PREFIXES),
                    c.as_row()) for c in o.candidates],
         "truth": None if b is None or not b.get("visible") else (b["app_x"], b["app_y"]),
         "truth_screen": None if b is None else (b.get("screen_u"), b.get("screen_v")),
