@@ -169,9 +169,12 @@ class MainWindow(QMainWindow):
         self.config.set_config(cfg)
 
     def _set_mode(self, video: bool) -> None:
+        if video and not self.video_mode:
+            self._blind_user = self.b_blind.isChecked()
         self.video_mode = video
-        self.b_blind.setChecked(True if video else self.b_blind.isChecked())
+        self.b_blind.setChecked(True if video else getattr(self, "_blind_user", False))
         self.b_blind.setEnabled(not video)
+        self.telemetry.set_video_mode(video)
         if video:
             self.tabs.setCurrentWidget(self.video)
 
@@ -222,6 +225,8 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentWidget(self.video)
                 self.statusBar().showMessage("select an MP4 file first")
                 return
+        if video:
+            cfg.run.name = Path(video).stem
         self.reset(keep_status=True)
         w = LoopWorker(cfg, video, truth or None, float(self.speed.currentText().rstrip("×")),
                        self.tabs.currentWidget() is self.debug)

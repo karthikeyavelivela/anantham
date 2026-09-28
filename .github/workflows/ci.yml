@@ -5,6 +5,7 @@ on:
     branches: ["**"]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:   # manual "Run workflow" (also builds the Windows executable)
 
 jobs:
   test:
@@ -40,7 +41,7 @@ jobs:
           path: smoke_bench/benchmark_*
 
   build-windows:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     needs: test
     runs-on: windows-latest
     steps:

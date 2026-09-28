@@ -36,7 +36,7 @@ class LivePlots(QWidget):
         self.window_s = window_s
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
-        self.p_err = _plot("Centroiding error", "px")
+        self.p_err = _plot("Centroiding error (dots) · tracking error (line)", "px")
         self.p_err.setLogMode(y=False)
         self.p_err.setYRange(0, 25)
         self.p_err.enableAutoRange(axis="y", enable=False)

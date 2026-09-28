@@ -211,9 +211,19 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def _utf8_console() -> None:
+    """Print µ, °, ≈ … safely on consoles with a legacy code page (e.g. Windows cp1252)."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> None:
     """Entry point. With no arguments the GUI starts (frozen .exe behaviour)."""
     argv = sys.argv[1:] if argv is None else argv
+    _utf8_console()
     if not argv:
         argv = ["gui"]
     args = build_parser().parse_args(argv)
