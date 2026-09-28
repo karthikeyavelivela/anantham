@@ -22,7 +22,7 @@ import numpy as np
 
 from ..config.schema import TrackerConfig
 from .gate import blink_statistic, blink_window, gated_nearest
-from .kalman import KalmanCV, NoiseEstimator
+from .kalman import KalmanCV, NoiseEstimator, q_matrix
 
 
 class State(StrEnum):
@@ -51,6 +51,8 @@ class Track:
     score_sum: float = 0.0
     noise: NoiseEstimator = field(default_factory=NoiseEstimator)
     last_r: float = 1.0
+    big_nu: np.ndarray | None = None          # last large innovation (manoeuvre persistence)
+    nis_hist: deque = field(default_factory=lambda: deque(maxlen=10))
 
 
 @dataclass
@@ -75,8 +77,9 @@ class Tracker:
     """Identity-gated single-target tracker with tentative-track confirmation."""
 
     def __init__(self, cfg: TrackerConfig, fps: float, spot_size: float,
-                 blink_freq: float | None):
+                 blink_freq: float | None, max_step_px: float = 30.0):
         self.cfg, self.fps, self.s = cfg, fps, spot_size
+        self.max_step = max_step_px
         ig = cfg.identity_gate
         self.confirm_n = cfg.confirm_frames if ig else 1
         self.start_sm = cfg.start_size_match if ig else 0.0
@@ -111,11 +114,25 @@ class Tracker:
         r2 = max(r2, est * est)
         return math.sqrt(r2)
 
-    def _gate(self, trk: Track) -> float:
-        g = self.gate_base + self.cfg.gate_n_sigma * trk.kf.gate_sigma(trk.last_r)
+    def _gate(self, trk: Track, tentative: bool = False) -> float:
+        r = max(trk.last_r, trk.noise.sigma()) if self.cfg.adaptive_r else trk.last_r
+        g = self.gate_base + self.cfg.gate_n_sigma * trk.kf.gate_sigma(r)
         if not self.cfg.use_kalman:
             g = max(g, 3 * self.gate_base)
+        if tentative and self.cfg.identity_gate:
+            # kinematic bound for the confirmation stage: the apparent step of a trackable
+            # target (plus LOS disturbance) is bounded by ~1.5× the slew limit per frame
+            g = max(g, self.gate_base + 1.5 * self.max_step)
         return g
+
+    def _adapt_q(self, trk: Track, nis: float) -> None:
+        """Scale Q by the recent mean NIS (≈2 when consistent) — handles smooth manoeuvres."""
+        if not (self.cfg.adaptive_r and self.cfg.use_kalman):
+            return
+        trk.nis_hist.append(min(nis, 50.0))
+        if len(trk.nis_hist) >= 5:
+            scale = min(max(float(np.mean(trk.nis_hist)) / 2.0, 1.0), 25.0)
+            trk.kf.Q = q_matrix(self.cfg.q_accel * scale)
 
     def _new_track(self, c) -> Track:
         trk = Track(self.next_id, KalmanCV(np.array([c.u, c.v]), self.cfg.r_base_px,
@@ -142,24 +159,28 @@ class Tracker:
     def _step_primary(self, cands: list, out: TrackOutput) -> None:
         p = self.primary
         kf = p.kf
-        if self.state == State.RECOVER:
+        if self.state == State.COAST:
+            kf.x[2:] *= 0.85  # partial extrapolation: robust to reversals during a dropout
+        elif self.state == State.RECOVER:
             kf.x[2:] *= 0.95  # damp velocity while searching locally
+        if self.state in (State.COAST, State.RECOVER):
+            sp = float(np.hypot(*kf.x[2:]))
+            if sp > self.max_step:  # never extrapolate faster than the gimbal can follow
+                kf.x[2:] *= self.max_step / sp
         kf.predict()
         p.age += 1
         gate = self._gate(p)
         pred = kf.pos
         idx, _ = gated_nearest(pred, cands, gate, self.assoc_sm)
-        manoeuvre = False
-        if idx >= 0 and self.cfg.manoeuvre:
-            c = cands[idx]
-            manoeuvre = kf.nis(np.array([c.u, c.v]), self._r(c, p)) > self.cfg.manoeuvre_nis
+        outside = False
         if idx < 0 and self.cfg.manoeuvre and self.cfg.identity_gate:
-            wide = 2.0 * gate + float(np.hypot(*kf.vel))
+            # a velocity reversal produces an innovation of up to 2|v|
+            wide = gate + self.gate_base + 2.0 * float(np.hypot(*kf.vel))
             j, _ = gated_nearest(pred, cands, wide, self.cfg.start_size_match)
             if j >= 0 and cands[j].score >= 0.5 and not cands[j].edge:
-                idx, manoeuvre = j, True
+                idx, outside = j, True
         if idx >= 0:
-            self._update_primary(p, cands[idx], manoeuvre, out)
+            self._update_primary(p, cands[idx], outside, out)
         else:
             self._miss_primary(p, out)
         out.focus_pos, out.focus_vel = kf.pos, kf.vel
@@ -167,14 +188,27 @@ class Tracker:
         out.ellipse = kf.cov_ellipse()
         out.noise_sigma = p.noise.sigma()
 
-    def _update_primary(self, p: Track, c, manoeuvre: bool, out: TrackOutput) -> None:
+    def _update_primary(self, p: Track, c, outside: bool, out: TrackOutput) -> None:
         z = np.array([c.u, c.v])
         r = self._r(c, p)
         p.last_r = r
-        if manoeuvre:
-            nu, _ = p.kf.innovation(z, r)
-            p.kf.inflate_velocity(nu)
-            out.manoeuvre = True
+        nu, S = p.kf.innovation(z, r)
+        nis = float(nu @ np.linalg.solve(S, nu))
+        if self.cfg.manoeuvre and (outside or nis > self.cfg.manoeuvre_nis):
+            # a real manoeuvre persists (two large innovations in a consistent direction);
+            # a single jitter spike does not — then only the position covariance opens up
+            sig_n = max(p.noise.sigma(), self.cfg.r_base_px, 0.5)
+            clear = float(np.hypot(*nu)) > 8.0 * sig_n  # far beyond any measured noise
+            if clear or (p.big_nu is not None and float(nu @ p.big_nu) > 0):
+                p.kf.inflate_velocity(nu)
+                out.manoeuvre = True
+            elif outside:
+                p.kf.P[0, 0] += float(nu @ nu)
+                p.kf.P[1, 1] += float(nu @ nu)
+            p.big_nu = nu
+        else:
+            p.big_nu = None
+        self._adapt_q(p, nis)
         p.kf.update(z, r)
         p.noise.add(z)
         p.misses = 0
@@ -210,7 +244,8 @@ class Tracker:
         for t in sorted(self.tentative, key=lambda t: -t.hits):
             t.kf.predict()
             t.age += 1
-            i, _ = gated_nearest(t.kf.pos, cands, self._gate(t), self.assoc_sm, used)
+            i, _ = gated_nearest(t.kf.pos, cands, self._gate(t, tentative=True), self.assoc_sm,
+                                 used)
             if i >= 0:
                 c = cands[i]
                 used.add(i)

@@ -249,7 +249,7 @@ class TrackerConfig:
     gate_base_px: float = ps(6.0, None, None, "Gate = base + n_sigma·σ_KF", hard_lo=0.5,
                              unit="px")
     gate_n_sigma: float = ps(3.0, None, None, "Gate sigma multiplier", hard_lo=0.5)
-    q_accel: float = ps(0.3, None, None, "Process noise (px/frame²)²", hard_lo=1e-6)
+    q_accel: float = ps(1.0, None, None, "Process noise (px/frame²)²", hard_lo=1e-6)
     r_base_px: float = ps(0.35, None, None, "Base measurement sigma", hard_lo=1e-3, unit="px")
     adaptive_r: bool = ps(True, note="R grows with low SNR, edge clipping, measured jitter")
     manoeuvre: bool = ps(True, note="Manoeuvre detection + velocity covariance inflation")
@@ -269,7 +269,7 @@ class ControlConfig:
     """Pan/tilt controller."""
 
     kp: float = ps(0.55, None, None, "Proportional gain (per frame)", hard_lo=0, hard_hi=2)
-    ki: float = ps(0.02, None, None, "Integral gain", hard_lo=0, hard_hi=1)
+    ki: float = ps(0.005, None, None, "Integral gain", hard_lo=0, hard_hi=1)
     kd: float = ps(0.05, None, None, "Derivative gain", hard_lo=0, hard_hi=2)
     feedforward: bool = ps(True, note="Velocity feed-forward (ablation switch)")
     ff_gain: float = ps(1.0, None, None, "Feed-forward gain", hard_lo=0, hard_hi=2)
@@ -277,8 +277,8 @@ class ControlConfig:
                                hard_lo=0, hard_hi=10, unit="frames")
     deadband_px: float = ps(0.25, None, None, "Error deadband", hard_lo=0, unit="px")
     uncertainty_scaling: bool = ps(True, note="Scale gains down as Kalman σ grows")
-    sigma0_px: float = ps(6.0, None, None, "σ at which gains halve", hard_lo=0.1, unit="px")
-    integral_limit_px: float = ps(200.0, None, None, "Integrator clamp", hard_lo=0, unit="px")
+    sigma0_px: float = ps(12.0, None, None, "σ at which gains halve", hard_lo=0.1, unit="px")
+    integral_limit_px: float = ps(100.0, None, None, "Integrator clamp", hard_lo=0, unit="px")
 
 
 @dataclass

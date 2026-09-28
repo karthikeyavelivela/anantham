@@ -88,11 +88,11 @@ class PatSystem:
             self.cnn = CnnVerifier(pc.model_path or None)
         blink = cfg.tracker.blink_verify
         blink_on = cfg.target.blink.enabled if blink is None else blink
-        self.tracker = Tracker(cfg.tracker, fps, self.s,
-                               cfg.target.blink.freq_hz if blink_on else None)
         cam = cfg.camera
         self.umax = (geometry.rate_deg_s_to_px_frame(cam.max_pan_rate_deg_s, fps, "h"),
                      geometry.rate_deg_s_to_px_frame(cam.max_tilt_rate_deg_s, fps, "v"))
+        self.tracker = Tracker(cfg.tracker, fps, self.s,
+                               cfg.target.blink.freq_hz if blink_on else None, max(self.umax))
         self.ctrl = PanTiltController(cfg.control, self.umax)
         self.ctrl_every = max(int(round(fps / cam.control_rate_hz)), 1)
         self.last_cmd = np.zeros(2)

@@ -243,3 +243,105 @@ def _page_plots(pdf, s, rows, timing):
     fig.tight_layout(rect=[0, 0, 1, 0.97])
     pdf.savefig(fig)
     plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# Benchmark report
+# ---------------------------------------------------------------------------
+
+GREEN, RED, GREY, AMBER = "#DCFCE7", "#FEE2E2", "#F1F5F9", "#FEF3C7"
+
+
+def _cell_color(val: float, thr: float, hi_bad: bool = True) -> str:
+    if val is None or (isinstance(val, float) and math.isnan(val)):
+        return GREY
+    ok = val <= thr if hi_bad else val >= thr
+    return GREEN if ok else RED
+
+
+def worst_case(agg: list[dict]) -> dict | None:
+    """Scenario group with the lowest pass rate, then highest worst-case target loss."""
+    cand = [a for a in agg if a["scenario"] != "target_absent"]
+    if not cand:
+        return None
+    return min(cand, key=lambda a: (a["pass_rate"], -np.nan_to_num(a["target_loss_worst"], nan=1.0),
+                                    -np.nan_to_num(a["trk_ss_rmse_px_worst"], nan=1e9)))
+
+
+def write_bench_report(path: Path, agg: list[dict], rows: list[dict], meta: dict) -> None:
+    """Combined benchmark PDF: one scenario matrix page per (acq, start) group."""
+    groups: dict[tuple, list[dict]] = {}
+    for a in agg:
+        groups.setdefault((a["variant"], a["acq"], a["start"]), []).append(a)
+    wc = worst_case(agg)
+    with PdfPages(path) as pdf:
+        for (variant, acq, start), g in groups.items():
+            fig = plt.figure(figsize=(11.69, 8.27))
+            fig.text(0.03, 0.96, f"ANANTHAM benchmark — acquisition: {acq}, start: {start}, "
+                     f"variant: {variant}", fontsize=13, color=NAVY, weight="bold")
+            fig.text(0.03, 0.935, f"{meta.get('seeds')} seeds × {meta.get('duration_s')} s per "
+                     f"scenario; values are mean / worst over seeds. Green = meets the PS "
+                     f"threshold in the worst seed, red = fails. Perception: "
+                     f"{meta.get('perception')}.", fontsize=8, color=NAVY)
+            if wc is not None:
+                fig.text(0.03, 0.915, f"Worst case overall: '{wc['scenario']}' ({wc['acq']}, "
+                         f"{wc['start']}) — pass rate {100 * wc['pass_rate']:.0f} %, worst target "
+                         f"loss {fmt(100 * wc['target_loss_worst'], 1)} %, worst steady RMSE "
+                         f"{fmt(wc['trk_ss_rmse_px_worst'])} px", fontsize=8, color="#B91C1C")
+            ax = fig.add_axes([0.02, 0.02, 0.96, 0.88])
+            cells, colors = [], {}
+            for i, a in enumerate(g):
+                absent = a["scenario"] == "target_absent"
+                cells.append([
+                    a["scenario"], f"{a['acquired']}/{a['seeds']}",
+                    f"{fmt(a['acq_time_s_mean'])} / {fmt(a['acq_time_s_worst'])}",
+                    f"{fmt(a['cent_rmse_px_mean'], 3)} / {fmt(a['cent_rmse_px_worst'], 3)}",
+                    f"{fmt(a['trk_rmse_px_mean'])} / {fmt(a['trk_rmse_px_worst'])}",
+                    f"{fmt(a['trk_ss_rmse_px_mean'])} / {fmt(a['trk_ss_rmse_px_worst'])}",
+                    f"{fmt(100 * a['target_loss_mean'], 1)} / {fmt(100 * a['target_loss_worst'], 1)}",
+                    f"{fmt(a['reacq_max_s_worst'])}", str(a["unrecovered"]),
+                    f"{fmt(a['false_lock_frames_worst'], 0)}",
+                    f"{fmt(a['proc_fps_mean'], 0)} / {fmt(a['proc_fps_worst'], 0)}",
+                    f"{100 * a['pass_rate']:.0f} %"])
+                if absent:
+                    colors[(i, 9)] = GREEN if a["false_lock_frames_worst"] == 0 else RED
+                    colors[(i, 11)] = GREEN if a["pass_rate"] == 1 else RED
+                    continue
+                colors[(i, 2)] = _cell_color(a["acq_time_s_worst"], 2.0)
+                colors[(i, 3)] = _cell_color(a["cent_rmse_px_worst"], 10.0)
+                colors[(i, 4)] = _cell_color(a["trk_rmse_px_worst"], 10.0)
+                colors[(i, 5)] = _cell_color(a["trk_ss_rmse_px_worst"], 10.0)
+                colors[(i, 6)] = _cell_color(a["target_loss_worst"], 0.0499999)
+                colors[(i, 7)] = _cell_color(a["reacq_max_s_worst"], 1.0)
+                colors[(i, 8)] = GREEN if a["unrecovered"] == 0 else RED
+                colors[(i, 10)] = _cell_color(a["proc_fps_worst"], 20.0, hi_bad=False)
+                colors[(i, 11)] = GREEN if a["pass_rate"] == 1 else (AMBER if a["pass_rate"] > 0 else RED)
+                if wc is not None and a is wc:
+                    colors[(i, 0)] = "#FCA5A5"
+            _table(ax, cells, ["scenario", "acq.", "acq. time s", "centroid RMSE px",
+                               "track RMSE all px", "track RMSE steady px", "target loss %",
+                               "re-acq max s", "unrec.", "false-lock fr.", "proc FPS",
+                               "all-PS pass"],
+                   [0.11, 0.04, 0.08, 0.1, 0.1, 0.1, 0.09, 0.07, 0.05, 0.07, 0.08, 0.07],
+                   colors, fontsize=6.5)
+            pdf.savefig(fig)
+            plt.close(fig)
+        _bench_distribution_page(pdf, rows)
+
+
+def _bench_distribution_page(pdf, rows):
+    fig, axes = plt.subplots(2, 2, figsize=(11.69, 8.27))
+    fig.suptitle("Distributions over all benchmark runs", color=NAVY, fontsize=13, weight="bold")
+    specs = [("acq_time_s", "Acquisition time (s)", 2.0), ("trk_ss_rmse_px", "Steady tracking RMSE (px)", 10.0),
+             ("target_loss", "Target loss", 0.05), ("proc_fps", "Processing FPS", 20.0)]
+    for ax, (col, title, thr) in zip(axes.ravel(), specs):
+        v = np.array([np.nan if r[col] is None else float(r[col]) for r in rows], float)
+        v = v[np.isfinite(v)]
+        if v.size:
+            ax.hist(v, bins=40, color="#0EA5E9")
+        ax.axvline(thr, color="r", ls="--", lw=1, label="PS threshold")
+        ax.set_title(title, fontsize=9)
+        ax.legend(fontsize=7)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    pdf.savefig(fig)
+    plt.close(fig)
