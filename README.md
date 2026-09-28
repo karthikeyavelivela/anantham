@@ -358,6 +358,7 @@ for every push; the Windows executable is built on `v*` tags or a manual *Run wo
 | [Technical report](docs/TECHNICAL_REPORT.md) | models, algorithms, test methodology, results, ablation, failure analysis, limitations |
 | [Architecture](docs/ARCHITECTURE.md) | module map, sensor boundary, state machine |
 | [Metrics](docs/METRICS.md) | exact metric definitions and PS thresholds |
+| [Recording guide](docs/RECORDING_GUIDE.md) | click-by-click screen-recording walkthrough (prep commands, 11 scenes, narration, YouTube template) |
 | [Demo script](docs/DEMO_SCRIPT.md) | 4-minute demo walkthrough |
 
 ---
