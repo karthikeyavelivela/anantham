@@ -52,12 +52,10 @@ def _losses(model, xb, sb, hb, ob, mb):
 
     score, heat, off = model(xb)
     l_s = F.binary_cross_entropy_with_logits(score[:, 0], sb)
-    # focal-style weighting of the heatmap (positives are rare)
-    p = torch.sigmoid(heat[:, 0])
+    # up-weight heatmap positives (they are rare)
     w = torch.where(hb > 0.5, 4.0, 1.0) * (1 - hb + 0.25)
     l_h = (F.binary_cross_entropy_with_logits(heat[:, 0], hb, reduction="none") * w).mean()
     l_o = (torch.abs(off - ob).sum(1) * mb).sum() / mb.sum().clamp(min=1)
-    _ = p
     return l_s + 2.0 * l_h + 1.0 * l_o, (score, heat, off)
 
 

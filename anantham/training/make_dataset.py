@@ -92,8 +92,6 @@ def _edge_clip(q: np.ndarray, rng: np.random.Generator, heat_pts: list) -> np.nd
     """Emulate a ROI at an image border: reflect-pad past a random border line."""
     side = rng.integers(4)
     k = int(rng.integers(8, 30))
-    big = cv2.copyMakeBorder(q, 64, 64, 64, 64, cv2.BORDER_REFLECT)
-    _ = big
     out = q.copy()
     if side == 0:
         out[:, :k] = np.fliplr(q[:, k:2 * k])

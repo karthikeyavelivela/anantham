@@ -311,10 +311,9 @@ class BenchWorker(QObject):
             jobs = [(sc, sd, a, st, "full", dur, Path(out) / "runs", None)
                     for sc in scen for a in acqs for st in starts for sd in range(seeds)]
             rows = []
-            for i, chunk in enumerate(range(0, len(jobs), max(workers, 1))):
+            for chunk in range(0, len(jobs), max(workers, 1)):
                 rows += run_jobs(jobs[chunk:chunk + max(workers, 1)], workers, "gui-bench")
                 self.progress.emit(min(len(rows), len(jobs)), len(jobs))
-                _ = i
             agg = aggregate(rows)
             Path(out).mkdir(parents=True, exist_ok=True)
             write_csv(Path(out) / "benchmark_runs.csv", rows)
