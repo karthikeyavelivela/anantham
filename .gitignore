@@ -9,3 +9,4 @@ results/
 training_data/
 *.npz
 !anantham/models/*
+brag-output*/
